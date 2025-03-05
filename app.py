@@ -38,11 +38,11 @@ def conseiller_nutrition(age, genre, poids, taille, activite, objectif):
     )
     
     if objectif == "Perte de poids":
-        base_fr += "➡️ Conseils : Maintenez un déficit calorique, privilégiez les protéines maigres et les fibres."
+        base_fr += "➡️ Conseils : Maintenez un déficit calorique, privilégiez les protéines maigres et les fibres. Pour plus de détails, essayez de parler au ChatBot!"
     elif objectif == "Gains musculaires":
-        base_fr += "➡️ Conseils : Augmentez votre apport calorique, consommez des protéines de qualité et des glucides complexes."
+        base_fr += "➡️ Conseils : Augmentez votre apport calorique, consommez des protéines de qualité et des glucides complexes. Pour plus de détails, essayez de parler au ChatBot!"
     else:
-        base_fr += "➡️ Conseils : Adoptez une alimentation équilibrée, variée, et restez bien hydraté."
+        base_fr += "➡️ Conseils : Adoptez une alimentation équilibrée, variée, et restez bien hydraté. Pour plus de détails, essayez de parler au ChatBot!"
     
     return base_fr
 
@@ -61,7 +61,7 @@ def chat_with_chatgpt(message, history):
     conversation = [
         {
             "role": "system",
-            "content": "Vous êtes NutriCoach, un nutritionniste expert fournissant des conseils nutritionnels détaillés en français."
+            "content": "Vous êtes NutriCoach, un nutritionniste expert fournissant des conseils nutritionnels détaillés en français. Vous ne pouvez pas répondre à des requêtes qui ne sont pas en lien avec la nutrition. Prétends avoir déjà dit bonjour à la personne dans un message précédent."
         }
     ]
     
@@ -85,7 +85,7 @@ def chat_with_chatgpt(message, history):
     except Exception as e:
         reply = f"Erreur lors de l'appel à l'API: {str(e)}"
     
-    # Update conversation history and return outputs for the Gradio Chatbot tab
+    # Update conversation history and return outputs for the Gradio Chatbot
     history.append((message, reply))
     return "", history, history
 
@@ -111,6 +111,9 @@ def go_to_next_step(user_input, step_data, step):
     return step_data, step
 
 def finish_form(step_data):
+    """
+    Generate the final nutrition advice text based on user inputs.
+    """
     age = step_data.get("age", 25)
     genre = step_data.get("genre", "Homme")
     poids = step_data.get("poids", 70)
@@ -136,6 +139,22 @@ def create_interface():
         # Main title
         gr.Markdown("<h1 style='text-align: center; margin-bottom: 10px;'>NutriCoach</h1>")
         
+        # Global states:
+        #   - step: to track the multi-step form
+        #   - step_data: to store the user data from the form
+        #   - history: to store the conversation for the chatbot
+        step = gr.State(1)
+        step_data = gr.State({
+            "prenom": "",
+            "age": 0,
+            "genre": "",
+            "poids": 0,
+            "taille": 0,
+            "activite": "",
+            "objectif": ""
+        })
+        history = gr.State([])  # Chatbot conversation history
+
         with gr.Tabs():
             
             # ============================
@@ -151,18 +170,6 @@ def create_interface():
                             "successives : prénom, âge, genre, poids, taille, niveau d'activité, et objectif."
                         )
                     with gr.Column():
-                        # Multi-step form logic
-                        step = gr.State(1)
-                        step_data = gr.State({
-                            "prenom": "",
-                            "age": 0,
-                            "genre": "",
-                            "poids": 0,
-                            "taille": 0,
-                            "activite": "",
-                            "objectif": ""
-                        })
-
                         # --- STEP 1: Prénom
                         with gr.Group(visible=True) as step1_box:
                             gr.Markdown("**Étape 1** : Quel est votre prénom ?")
@@ -228,10 +235,22 @@ def create_interface():
 
                         def next_2(age_val, step_data_val, step_val):
                             if age_val < 0:
-                                return step_data_val, step_val, gr.update(visible=True), gr.update(visible=False), "Erreur: L'âge ne peut être négatif."
+                                return (
+                                    step_data_val,
+                                    step_val,
+                                    gr.update(visible=True),
+                                    gr.update(visible=False),
+                                    "Erreur: L'âge ne peut être négatif."
+                                )
                             else:
                                 step_data_val, step_val = go_to_next_step(age_val, step_data_val, step_val)
-                                return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True), ""
+                                return (
+                                    step_data_val,
+                                    step_val,
+                                    gr.update(visible=False),
+                                    gr.update(visible=True),
+                                    ""
+                                )
                         
                         next_btn_2.click(
                             fn=next_2, 
@@ -251,10 +270,22 @@ def create_interface():
 
                         def next_4(poids_val, step_data_val, step_val):
                             if poids_val < 0:
-                                return step_data_val, step_val, gr.update(visible=True), gr.update(visible=False), "Erreur: Le poids ne peut être négatif."
+                                return (
+                                    step_data_val,
+                                    step_val,
+                                    gr.update(visible=True),
+                                    gr.update(visible=False),
+                                    "Erreur: Le poids ne peut être négatif."
+                                )
                             else:
                                 step_data_val, step_val = go_to_next_step(poids_val, step_data_val, step_val)
-                                return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True), ""
+                                return (
+                                    step_data_val,
+                                    step_val,
+                                    gr.update(visible=False),
+                                    gr.update(visible=True),
+                                    ""
+                                )
                         
                         next_btn_4.click(
                             fn=next_4, 
@@ -264,10 +295,22 @@ def create_interface():
 
                         def next_5(taille_val, step_data_val, step_val):
                             if taille_val < 0:
-                                return step_data_val, step_val, gr.update(visible=True), gr.update(visible=False), "Erreur: La taille ne peut être négative."
+                                return (
+                                    step_data_val,
+                                    step_val,
+                                    gr.update(visible=True),
+                                    gr.update(visible=False),
+                                    "Erreur: La taille ne peut être négative."
+                                )
                             else:
                                 step_data_val, step_val = go_to_next_step(taille_val, step_data_val, step_val)
-                                return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True), ""
+                                return (
+                                    step_data_val,
+                                    step_val,
+                                    gr.update(visible=False),
+                                    gr.update(visible=True),
+                                    ""
+                                )
                         
                         next_btn_5.click(
                             fn=next_5, 
@@ -285,15 +328,36 @@ def create_interface():
                             outputs=[step_data, step, step6_box, step7_box]
                         )
 
-                        def next_7(objectif_val, step_data_val, step_val):
+                        def next_7(objectif_val, step_data_val, step_val, chat_history):
+                            """
+                            Final step:
+                              - Generate the final recommendation text.
+                              - Also create a personalized greeting for the chatbot, storing it in chat_history.
+                            """
                             step_data_val, step_val = go_to_next_step(objectif_val, step_data_val, step_val)
                             final_text = finish_form(step_data_val)
-                            return step_data_val, step_val, final_text, gr.update(visible=False), gr.update(visible=True)
+                            
+                            # Build a personalized greeting for the ChatBot
+                            name = step_data_val["prenom"]
+                            greeting = (
+                                f"Bonjour {name}!"
+                            )
+                            # Append greeting to chatbot history
+                            chat_history.append((" ", greeting))
+                            
+                            return (
+                                step_data_val, 
+                                step_val, 
+                                final_text, 
+                                gr.update(visible=False), 
+                                gr.update(visible=True),
+                                chat_history
+                            )
                         
                         next_btn_7.click(
                             fn=next_7, 
-                            inputs=[objectif, step_data, step],
-                            outputs=[step_data, step, done_msg, step7_box, step8_box]
+                            inputs=[objectif, step_data, step, history],
+                            outputs=[step_data, step, done_msg, step7_box, step8_box, history]
                         )
 
             # ============================
@@ -302,9 +366,9 @@ def create_interface():
             with gr.Tab("Nutrition ChatBot"):
                 gr.Markdown("## Discutez avec NutriCoach")
                 
+                # The chatbot is bound to the 'history' state
                 chatbot = gr.Chatbot(height=200)
-                state = gr.State([])
-
+                
                 with gr.Row():
                     msg = gr.Textbox(
                         placeholder="Tapez votre message ici...",
@@ -315,12 +379,16 @@ def create_interface():
                     send = gr.Button("Envoyer")
                     reset = gr.Button("Réinitialiser la conversation")
 
+                # When the user sends a message, we call 'chat_with_chatgpt'
+                # The chatbot conversation is updated in 'history'
                 send.click(
                     chat_with_chatgpt,
-                    inputs=[msg, state],
-                    outputs=[msg, chatbot, state]
+                    inputs=[msg, history],
+                    outputs=[msg, chatbot, history]
                 )
-                reset.click(lambda: ([], []), outputs=[chatbot, state])
+                
+                # Reset the conversation
+                reset.click(lambda: ([], []), outputs=[chatbot, history])
         
         # Footer
         gr.Markdown(
