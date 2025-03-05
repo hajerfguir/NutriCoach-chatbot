@@ -80,7 +80,6 @@ def chat_with_chatgpt(message, history):
             temperature=0.7,
             max_tokens=150,
         )
-        # Print the answer as per the tutorial
         print(response["choices"][0]["message"]["content"])
         reply = response["choices"][0]["message"]["content"].strip()
     except Exception as e:
@@ -102,6 +101,7 @@ custom_theme = gr.themes.Soft(
 # 4) MULTI-STEP FORM LOGIC
 # ---------------------------------------------------------------------------------------
 def go_to_next_step(user_input, step_data, step):
+    # Les validations numériques se font dans les fonctions "next_*"
     if step == 1:
         step_data["prenom"] = user_input
     elif step == 2:
@@ -133,115 +133,129 @@ def finish_form(step_data):
 # ---------------------------------------------------------------------------------------
 def create_interface():
     with gr.Blocks(theme=custom_theme) as demo:
-        # Optional Logo + Centered Title
         gr.Image("logo.png", elem_id="logo", show_label=False)
         
-        # Center the Tabs by wrapping them in a Row with justify="center"
         with gr.Tabs():
             # ------------------------------------------------------------------
             # MULTI-STEP FORM TAB
             # ------------------------------------------------------------------
             with gr.Tab("Formulaire personnalisé"):
+                gr.Markdown("### Analyse des données personnalisée", elem_id="chatbot-header")
                 step = gr.State(1)
                 step_data = gr.State({
                     "prenom": "",
-                    "age": 25,
-                    "genre": "Homme",
-                    "poids": 70,
-                    "taille": 170,
-                    "activite": "Modéré",
-                    "objectif": "Perte de poids"
+                    "age": 0,
+                    "genre": "",
+                    "poids": 0,
+                    "taille": 0,
+                    "activite": "",
+                    "objectif": ""
                 })
 
+                # -----------------------
+                # Étape 1: Prénom
                 with gr.Group(elem_id="step1", visible=True) as step1_box:
                     gr.Markdown("<p>Quel est votre prénom ?</p>")
                     prenom = gr.Textbox(show_label=False)
                     next_btn_1 = gr.Button("Valider")
-
+                # -----------------------
+                # Étape 2: Âge (vérification de la validité)
                 with gr.Group(elem_id="step2", visible=False) as step2_box:
                     gr.Markdown("<p>Quel est votre âge ?</p>")
-                    age = gr.Number(show_label=False, value=25)
+                    age = gr.Number(show_label=False, value=25, minimum=0)
+                    error_age = gr.Markdown("", visible=False)
                     next_btn_2 = gr.Button("Valider")
-
+                # -----------------------
+                # Étape 3: Genre
                 with gr.Group(elem_id="step3", visible=False) as step3_box:
                     gr.Markdown("<p>Quel est votre genre ?</p>")
                     genre = gr.Radio(["Homme", "Femme"], value="Homme", show_label=False)
                     next_btn_3 = gr.Button("Valider")
-
+                # -----------------------
+                # Étape 4: Poids (vérification de la validité)
                 with gr.Group(elem_id="step4", visible=False) as step4_box:
                     gr.Markdown("<p>Quel est votre poids (kg) ?</p>")
-                    poids = gr.Number(show_label=False, value=70)
+                    poids = gr.Number(show_label=False, value=70, minimum=0)
+                    error_poids = gr.Markdown("", visible=False)
                     next_btn_4 = gr.Button("Valider")
-
+                # -----------------------
+                # Étape 5: Taille (vérification de la validité)
                 with gr.Group(elem_id="step5", visible=False) as step5_box:
                     gr.Markdown("<p>Quelle est votre taille (cm) ?</p>")
-                    taille = gr.Number(show_label=False, value=170)
+                    taille = gr.Number(show_label=False, value=170, minimum=0)
+                    error_taille = gr.Markdown("", visible=False)
                     next_btn_5 = gr.Button("Valider")
-
+                # -----------------------
+                # Étape 6: Niveau d'activité
                 with gr.Group(elem_id="step6", visible=False) as step6_box:
                     gr.Markdown("<p>Quel est votre niveau d'activité ?</p>")
                     activite = gr.Radio(["Sédentaire", "Modéré", "Athlétique"], value="Modéré", show_label=False)
                     next_btn_6 = gr.Button("Valider")
-
+                # -----------------------
+                # Étape 7: Objectif
                 with gr.Group(elem_id="step7", visible=False) as step7_box:
                     gr.Markdown("<p>Quel est votre objectif principal ?</p>")
                     objectif = gr.Radio(["Perte de poids", "Gains musculaires", "Autre"], value="Perte de poids", show_label=False)
                     next_btn_7 = gr.Button("Valider")
-
+                # -----------------------
+                # Étape 8: Affichage des recommandations
                 with gr.Group(elem_id="step8", visible=False) as step8_box:
                     gr.Markdown("<p>Merci ! Voici vos recommandations :</p>")
                     done_msg = gr.Markdown("", show_label=False)
 
                 # -----------------------------
-                # Next Button Functions
+                # Fonctions de passage d'étape avec validation
                 # -----------------------------
                 def next_1(prenom_val, step_data_val, step_val):
+                    # Pas de validation spécifique pour le prénom
                     step_data_val, step_val = go_to_next_step(prenom_val, step_data_val, step_val)
                     return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True)
-
                 next_btn_1.click(fn=next_1, inputs=[prenom, step_data, step],
                                  outputs=[step_data, step, step1_box, step2_box])
-
+                
                 def next_2(age_val, step_data_val, step_val):
-                    step_data_val, step_val = go_to_next_step(age_val, step_data_val, step_val)
-                    return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True)
-
+                    if age_val < 0:
+                        return step_data_val, step_val, gr.update(visible=True), gr.update(visible=False), "Erreur: L'âge ne peut être négatif."
+                    else:
+                        step_data_val, step_val = go_to_next_step(age_val, step_data_val, step_val)
+                        return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True), ""
                 next_btn_2.click(fn=next_2, inputs=[age, step_data, step],
-                                 outputs=[step_data, step, step2_box, step3_box])
-
+                                 outputs=[step_data, step, step2_box, step3_box, error_age])
+                
                 def next_3(genre_val, step_data_val, step_val):
                     step_data_val, step_val = go_to_next_step(genre_val, step_data_val, step_val)
                     return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True)
-
                 next_btn_3.click(fn=next_3, inputs=[genre, step_data, step],
                                  outputs=[step_data, step, step3_box, step4_box])
-
+                
                 def next_4(poids_val, step_data_val, step_val):
-                    step_data_val, step_val = go_to_next_step(poids_val, step_data_val, step_val)
-                    return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True)
-
+                    if poids_val < 0:
+                        return step_data_val, step_val, gr.update(visible=True), gr.update(visible=False), "Erreur: Le poids ne peut être négatif."
+                    else:
+                        step_data_val, step_val = go_to_next_step(poids_val, step_data_val, step_val)
+                        return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True), ""
                 next_btn_4.click(fn=next_4, inputs=[poids, step_data, step],
-                                 outputs=[step_data, step, step4_box, step5_box])
-
+                                 outputs=[step_data, step, step4_box, step5_box, error_poids])
+                
                 def next_5(taille_val, step_data_val, step_val):
-                    step_data_val, step_val = go_to_next_step(taille_val, step_data_val, step_val)
-                    return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True)
-
+                    if taille_val < 0:
+                        return step_data_val, step_val, gr.update(visible=True), gr.update(visible=False), "Erreur: La taille ne peut être négative."
+                    else:
+                        step_data_val, step_val = go_to_next_step(taille_val, step_data_val, step_val)
+                        return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True), ""
                 next_btn_5.click(fn=next_5, inputs=[taille, step_data, step],
-                                 outputs=[step_data, step, step5_box, step6_box])
-
+                                 outputs=[step_data, step, step5_box, step6_box, error_taille])
+                
                 def next_6(activite_val, step_data_val, step_val):
                     step_data_val, step_val = go_to_next_step(activite_val, step_data_val, step_val)
                     return step_data_val, step_val, gr.update(visible=False), gr.update(visible=True)
-
                 next_btn_6.click(fn=next_6, inputs=[activite, step_data, step],
                                  outputs=[step_data, step, step6_box, step7_box])
-
+                
                 def next_7(objectif_val, step_data_val, step_val):
                     step_data_val, step_val = go_to_next_step(objectif_val, step_data_val, step_val)
                     final_text = finish_form(step_data_val)
                     return step_data_val, step_val, final_text, gr.update(visible=False), gr.update(visible=True)
-
                 next_btn_7.click(fn=next_7, inputs=[objectif, step_data, step],
                                  outputs=[step_data, step, done_msg, step7_box, step8_box])
             
@@ -250,22 +264,17 @@ def create_interface():
             # ------------------------------------------------------------------
             with gr.Tab("Nutrition ChatBot"):
                 gr.Markdown("### Discutez avec NutriCoach", elem_id="chatbot-header")
-                
                 with gr.Column():
                     chatbot = gr.Chatbot(height=200, elem_id="chatbot-window")
                     state = gr.State([])
-
                     with gr.Row():
                         msg = gr.Textbox(placeholder="Tapez votre message ici...", label="Vous", elem_id="chat-input")
-                    
                     with gr.Row():
                         send = gr.Button("Envoyer", elem_id="send-button")
                         reset = gr.Button("Réinitialiser la conversation", elem_id="reset-button")
-
                 send.click(chat_with_chatgpt, inputs=[msg, state], outputs=[msg, chatbot, state])
                 reset.click(lambda: ([], []), outputs=[chatbot, state])
         
-        # Centered Footer
         gr.Markdown("<div class='footer' style='text-align: center;'>&copy; 2025 NutriCoach. Tous droits réservés.</div>")
     return demo
 
