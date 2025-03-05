@@ -134,7 +134,7 @@ def create_interface():
 
     with gr.Blocks(theme=custom_theme) as demo:
         # Add the logo at the top (ensure "logo.png" is in the same folder)
-        gr.Image("logo.png", show_label=False, elem_id="logo")
+        gr.Image("logo.png", show_label=False, elem_id="logo", width=20)
 
         # Main title
         gr.Markdown("<h1 style='text-align: center; margin-bottom: 10px;'>NutriCoach</h1>")
@@ -390,12 +390,6 @@ def create_interface():
                 # Reset the conversation
                 reset.click(lambda: ([], []), outputs=[chatbot, history])
         
-        # Footer
-        gr.Markdown(
-            "<div style='text-align: center; margin-top: 20px;'>"
-            "&copy; 2025 NutriCoach. Tous droits réservés."
-            "</div>"
-        )
     return demo
 
 if __name__ == "__main__":
