@@ -1,18 +1,31 @@
-import gradio as gr
+import gradio as gr 
 import openai
 import yaml
 
-# Load configuration and set the OpenAI API key
-with open("config.yaml") as f:
+# Load API key from configuration file
+with open("config.yaml") as f: 
     config_yaml = yaml.load(f, Loader=yaml.FullLoader)
 openai.api_key = config_yaml['token']
 
+# Optional: Test call to GPT‑3.5-turbo (this prints the answer in the console)
+messages = [
+    {"role": "system", "content": "You are a nutritionist."},
+    {"role": "user", "content": "Help out someone reach their nutrition goals as they talk to you."},
+]
+ans = openai.ChatCompletion.create(
+    model="gpt-3.5-turbo",
+    max_tokens=2048,
+    messages=messages,
+)
+print(ans["choices"][0]["message"]["content"])
+
 # ---------------------------------------------------------------------------------------
-# 1) FUNCTION FOR GENERATING NUTRITION ADVICE (in French)
+# 1) TEXTS & LOGIC FOR NUTRITION ADVICE
 # ---------------------------------------------------------------------------------------
 def conseiller_nutrition(age, genre, poids, taille, activite, objectif):
     """
-    Generate personalized nutrition recommendations in French.
+    Simple function to generate nutrition advice in French.
+    Feel free to customize or expand the logic.
     """
     base_fr = "**Voici vos recommandations nutritionnelles personnalisées :**\n\n"
     base_fr += (
@@ -34,25 +47,25 @@ def conseiller_nutrition(age, genre, poids, taille, activite, objectif):
     return base_fr
 
 # ---------------------------------------------------------------------------------------
-# 2) CHATBOT FUNCTION USING THE OPENAI CHAT API
+# 2) CHATBOT FUNCTION USING THE OPENAI CHATGPT API
 # ---------------------------------------------------------------------------------------
 def chat_with_chatgpt(message, history):
     """
-    Builds the conversation context and calls the ChatGPT API.
-    Returns the updated conversation history.
+    This function builds a conversation context and calls the ChatGPT API.
+    It prints the answer to the console and returns the updated conversation history.
     """
     if history is None:
         history = []
     
-    # Define the system prompt to set the assistant's role in French
+    # Define the system prompt for the assistant
     conversation = [
         {
             "role": "system",
-            "content": "Vous êtes un expert en nutrition. Vous fournissez uniquement des conseils et réponses relatives à la nutrition. Si l'utilisateur pose une question hors sujet, vous devez lui rappeler que vous êtes limité à ce domaine."
+            "content": "Vous êtes NutriCoach, un nutritionniste expert fournissant des conseils nutritionnels détaillés en français."
         }
     ]
     
-    # Add previous conversation history to the context
+    # Include previous conversation history in the context
     for user_msg, assistant_msg in history:
         conversation.append({"role": "user", "content": user_msg})
         conversation.append({"role": "assistant", "content": assistant_msg})
@@ -67,16 +80,18 @@ def chat_with_chatgpt(message, history):
             temperature=0.7,
             max_tokens=150,
         )
+        # Print the answer as per the tutorial
+        print(response["choices"][0]["message"]["content"])
         reply = response["choices"][0]["message"]["content"].strip()
     except Exception as e:
         reply = f"Erreur lors de l'appel à l'API: {str(e)}"
     
-    # Update conversation history for the Gradio Chatbot interface
+    # Update conversation history and return outputs for the Gradio Chatbot tab
     history.append((message, reply))
     return "", history, history
 
 # ---------------------------------------------------------------------------------------
-# 3) DEFINE A CUSTOM THEME
+# 3) DEFINE THE CUSTOM THEME
 # ---------------------------------------------------------------------------------------
 custom_theme = gr.themes.Soft(
     primary_hue="green",
@@ -87,9 +102,6 @@ custom_theme = gr.themes.Soft(
 # 4) MULTI-STEP FORM LOGIC
 # ---------------------------------------------------------------------------------------
 def go_to_next_step(user_input, step_data, step):
-    """
-    Update the form data based on the current step and increment the step.
-    """
     if step == 1:
         step_data["prenom"] = user_input
     elif step == 2:
@@ -108,9 +120,6 @@ def go_to_next_step(user_input, step_data, step):
     return step_data, step
 
 def finish_form(step_data):
-    """
-    Finalize the form submission and generate nutrition recommendations.
-    """
     age = step_data.get("age", 25)
     genre = step_data.get("genre", "Homme")
     poids = step_data.get("poids", 70)
@@ -120,20 +129,19 @@ def finish_form(step_data):
     return conseiller_nutrition(age, genre, poids, taille, activite, objectif)
 
 # ---------------------------------------------------------------------------------------
-# 5) BUILD THE GRADIO INTERFACE
+# 5) BUILDING THE GRADIO INTERFACE
 # ---------------------------------------------------------------------------------------
 def create_interface():
     with gr.Blocks(theme=custom_theme) as demo:
-        # Optional Logo and Centered Title
+        # Optional Logo + Centered Title
         gr.Image("logo.png", elem_id="logo", show_label=False)
         
-        # Wrap tabs in a centered layout
+        # Center the Tabs by wrapping them in a Row with justify="center"
         with gr.Tabs():
             # ------------------------------------------------------------------
-            # Multi-step Personalized Form
+            # MULTI-STEP FORM TAB
             # ------------------------------------------------------------------
             with gr.Tab("Formulaire personnalisé"):
-                # Initialize state for step counter and form data
                 step = gr.State(1)
                 step_data = gr.State({
                     "prenom": "",
@@ -236,23 +244,29 @@ def create_interface():
 
                 next_btn_7.click(fn=next_7, inputs=[objectif, step_data, step],
                                  outputs=[step_data, step, done_msg, step7_box, step8_box])
-                
+            
             # ------------------------------------------------------------------
-            # Chatbot Tab Using the ChatGPT API
+            # NUTRITION CHATBOT TAB
             # ------------------------------------------------------------------
             with gr.Tab("Nutrition ChatBot"):
-                gr.Markdown("### Discutez avec NutriCoach")
-                chatbot = gr.Chatbot()
-                state = gr.State([])
-                with gr.Row():
-                    msg = gr.Textbox(placeholder="Tapez votre message ici...", label="")
-                    send = gr.Button("Envoyer")
+                gr.Markdown("### Discutez avec NutriCoach", elem_id="chatbot-header")
+                
+                with gr.Column():
+                    chatbot = gr.Chatbot(height=200, elem_id="chatbot-window")
+                    state = gr.State([])
+
+                    with gr.Row():
+                        msg = gr.Textbox(placeholder="Tapez votre message ici...", label="Vous", elem_id="chat-input")
+                    
+                    with gr.Row():
+                        send = gr.Button("Envoyer", elem_id="send-button")
+                        reset = gr.Button("Réinitialiser la conversation", elem_id="reset-button")
+
                 send.click(chat_with_chatgpt, inputs=[msg, state], outputs=[msg, chatbot, state])
-                reset = gr.Button("Réinitialiser la conversation")
                 reset.click(lambda: ([], []), outputs=[chatbot, state])
         
         # Centered Footer
-        gr.Markdown("<div style='text-align: center;'>&copy; 2025 NutriCoach. Tous droits réservés.</div>")
+        gr.Markdown("<div class='footer' style='text-align: center;'>&copy; 2025 NutriCoach. Tous droits réservés.</div>")
     return demo
 
 if __name__ == "__main__":
