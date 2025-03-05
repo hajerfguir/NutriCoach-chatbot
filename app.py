@@ -337,12 +337,20 @@ def create_interface():
                             step_data_val, step_val = go_to_next_step(objectif_val, step_data_val, step_val)
                             final_text = finish_form(step_data_val)
                             
-                            # Build a personalized greeting for the ChatBot
+                            # Build a personalized greeting for the ChatBot including all user info
                             name = step_data_val["prenom"]
+                            age = step_data_val["age"]
+                            genre = step_data_val["genre"]
+                            poids = step_data_val["poids"]
+                            taille = step_data_val["taille"]
+                            activite = step_data_val["activite"]
+                            objectif = step_data_val["objectif"]
                             greeting = (
-                                f"Bonjour {name}!"
+                                f"Bonjour {name}! J'ai bien noté que vous avez {age} ans, que vous êtes {genre}, "
+                                f"que vous pesez {poids} kg, mesurez {taille} cm, que votre niveau d'activité est {activite} "
+                                f"et que votre objectif est '{objectif}'. Comment puis-je vous aider avec votre nutrition aujourd'hui ?"
                             )
-                            # Append greeting to chatbot history
+                            # Append greeting to chatbot conversation history
                             chat_history.append((" ", greeting))
                             
                             return (
