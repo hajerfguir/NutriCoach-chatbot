@@ -241,11 +241,12 @@ def update_ui_texts(lang):
         "",  # reset error_height text
         translations[lang]["voice_input_label"],      # voice input label
         translations[lang]["speak_button"],           # speak button text
-        translations[lang]["voice_output_label"]      # voice output label
+        translations[lang]["voice_output_label"],     # voice output label
+        translations[lang]["voice_section_header"]    # voice section header text
     )
 
 # ---------------------------------------------------------------------------------------
-# 5) APPLY GREEN THEME, ADD LOGO, AND BUILD INTERFACE
+# 5) APPLY GREEN THEME, ADD LOGO, AND BUILD INTERFACE WITH IMPROVED UI LAYOUT
 # ---------------------------------------------------------------------------------------
 def create_interface():
     custom_theme = gr.themes.Soft(
@@ -254,13 +255,15 @@ def create_interface():
     )
 
     with gr.Blocks(theme=custom_theme) as demo:
-        # Add logo at the top (ensure "logo.png" is in the same folder)
-        gr.Image("logo.png", show_label=False, elem_id="logo", width=20)
-        
-        # Language selection row and state
-        with gr.Row():
-            lang_dropdown = gr.Dropdown(choices=["fr", "en"], value="fr", label="Select Language / Choisir la langue")
-            lang_state = gr.State("fr")
+        # HEADER: logo, title, and language selector in a row
+        with gr.Row(elem_id="header"):
+            with gr.Column(scale=1, min_width=100):
+                gr.Markdown("")
+            with gr.Column(scale=3):
+                gr.Image("logo.png", show_label=False, elem_id="logo", width=100)
+            with gr.Column(scale=1):
+                lang_dropdown = gr.Dropdown(choices=["fr", "en"], value="fr", label="Select Language / Choisir la langue")
+                lang_state = gr.State("fr")
         
         # Global states for multi‑step form and ChatBot conversation
         step = gr.State(1)
@@ -280,121 +283,109 @@ def create_interface():
             # TAB 1: PERSONALIZED FORM
             # ---------------------------
             with gr.Tab("Formulaire personnalisé"):
-                # Place the introduction text inside the form tab
-                form_intro = gr.Markdown(translations["fr"]["welcome_form"])
-                with gr.Row():
-                    with gr.Column():
-                        # STEP 1
-                        with gr.Group(visible=True) as step1_box:
-                            step1_md = gr.Markdown(translations["fr"]["step1"])
-                            prenom = gr.Textbox(show_label=False)
-                            next_btn_1 = gr.Button("Valider")
-                        # STEP 2
-                        with gr.Group(visible=False) as step2_box:
-                            step2_md = gr.Markdown(translations["fr"]["step2"])
-                            age = gr.Number(show_label=False, value=25, minimum=0)
-                            error_age = gr.Markdown("", visible=False)
-                            next_btn_2 = gr.Button("Valider")
-                        # STEP 3
-                        with gr.Group(visible=False) as step3_box:
-                            step3_md = gr.Markdown(translations["fr"]["step3"])
-                            genre = gr.Radio(choices=translations["fr"]["genre_options"], value=translations["fr"]["genre_options"][0], show_label=False)
-                            next_btn_3 = gr.Button("Valider")
-                        # STEP 4
-                        with gr.Group(visible=False) as step4_box:
-                            step4_md = gr.Markdown(translations["fr"]["step4"])
-                            poids = gr.Number(show_label=False, value=70, minimum=0)
-                            error_poids = gr.Markdown("", visible=False)
-                            next_btn_4 = gr.Button("Valider")
-                        # STEP 5
-                        with gr.Group(visible=False) as step5_box:
-                            step5_md = gr.Markdown(translations["fr"]["step5"])
-                            taille = gr.Number(show_label=False, value=170, minimum=0)
-                            error_taille = gr.Markdown("", visible=False)
-                            next_btn_5 = gr.Button("Valider")
-                        # STEP 6
-                        with gr.Group(visible=False) as step6_box:
-                            step6_md = gr.Markdown(translations["fr"]["step6"])
-                            activite = gr.Radio(choices=translations["fr"]["activite_options"], value=translations["fr"]["activite_options"][1], show_label=False)
-                            next_btn_6 = gr.Button("Valider")
-                        # STEP 7
-                        with gr.Group(visible=False) as step7_box:
-                            step7_md = gr.Markdown(translations["fr"]["step7"])
-                            objectif = gr.Radio(choices=translations["fr"]["objectif_options"], value=translations["fr"]["objectif_options"][0], show_label=False)
-                            next_btn_7 = gr.Button("Valider")
-                        # STEP 8 (final result)
-                        with gr.Group(visible=False) as step8_box:
-                            final_md = gr.Markdown(translations["fr"]["final"])
-                            done_msg = gr.Markdown("", show_label=False)
-                        
-                        # STEP FUNCTIONS (linking steps)
-                        next_btn_1.click(
-                            fn=next_1, 
-                            inputs=[prenom, step_data, step],
-                            outputs=[step_data, step, step1_box, step2_box]
-                        )
-                        next_btn_2.click(
-                            fn=next_2, 
-                            inputs=[age, step_data, step, lang_state],
-                            outputs=[step_data, step, step2_box, step3_box, error_age]
-                        )
-                        next_btn_3.click(
-                            fn=next_3, 
-                            inputs=[genre, step_data, step],
-                            outputs=[step_data, step, step3_box, step4_box]
-                        )
-                        next_btn_4.click(
-                            fn=next_4, 
-                            inputs=[poids, step_data, step, lang_state],
-                            outputs=[step_data, step, step4_box, step5_box, error_poids]
-                        )
-                        next_btn_5.click(
-                            fn=next_5, 
-                            inputs=[taille, step_data, step, lang_state],
-                            outputs=[step_data, step, step5_box, step6_box, error_taille]
-                        )
-                        next_btn_6.click(
-                            fn=next_6, 
-                            inputs=[activite, step_data, step],
-                            outputs=[step_data, step, step6_box, step7_box]
-                        )
-                        next_btn_7.click(
-                            fn=next_7, 
-                            inputs=[objectif, step_data, step, history, lang_state],
-                            outputs=[step_data, step, done_msg, step7_box, step8_box, history]
-                        )
+                with gr.Column(scale=1):
+                    form_intro = gr.Markdown(translations["fr"]["welcome_form"], elem_id="form_intro")
+                with gr.Column():
+                    with gr.Group(visible=True) as step1_box:
+                        step1_md = gr.Markdown(translations["fr"]["step1"], elem_id="step1_md")
+                        prenom = gr.Textbox(show_label=False, placeholder="Entrez votre prénom ici")
+                        next_btn_1 = gr.Button("Valider")
+                    with gr.Group(visible=False) as step2_box:
+                        step2_md = gr.Markdown(translations["fr"]["step2"], elem_id="step2_md")
+                        age = gr.Number(show_label=False, value=25, minimum=0)
+                        error_age = gr.Markdown("", visible=False)
+                        next_btn_2 = gr.Button("Valider")
+                    with gr.Group(visible=False) as step3_box:
+                        step3_md = gr.Markdown(translations["fr"]["step3"], elem_id="step3_md")
+                        genre = gr.Radio(choices=translations["fr"]["genre_options"], value=translations["fr"]["genre_options"][0], show_label=False)
+                        next_btn_3 = gr.Button("Valider")
+                    with gr.Group(visible=False) as step4_box:
+                        step4_md = gr.Markdown(translations["fr"]["step4"], elem_id="step4_md")
+                        poids = gr.Number(show_label=False, value=70, minimum=0)
+                        error_poids = gr.Markdown("", visible=False)
+                        next_btn_4 = gr.Button("Valider")
+                    with gr.Group(visible=False) as step5_box:
+                        step5_md = gr.Markdown(translations["fr"]["step5"], elem_id="step5_md")
+                        taille = gr.Number(show_label=False, value=170, minimum=0)
+                        error_taille = gr.Markdown("", visible=False)
+                        next_btn_5 = gr.Button("Valider")
+                    with gr.Group(visible=False) as step6_box:
+                        step6_md = gr.Markdown(translations["fr"]["step6"], elem_id="step6_md")
+                        activite = gr.Radio(choices=translations["fr"]["activite_options"], value=translations["fr"]["activite_options"][1], show_label=False)
+                        next_btn_6 = gr.Button("Valider")
+                    with gr.Group(visible=False) as step7_box:
+                        step7_md = gr.Markdown(translations["fr"]["step7"], elem_id="step7_md")
+                        objectif = gr.Radio(choices=translations["fr"]["objectif_options"], value=translations["fr"]["objectif_options"][0], show_label=False)
+                        next_btn_7 = gr.Button("Valider")
+                    with gr.Group(visible=False) as step8_box:
+                        final_md = gr.Markdown(translations["fr"]["final"], elem_id="final_md")
+                        done_msg = gr.Markdown("", show_label=False)
+                    
+                    # STEP FUNCTIONS (linking steps)
+                    next_btn_1.click(
+                        fn=next_1, 
+                        inputs=[prenom, step_data, step],
+                        outputs=[step_data, step, step1_box, step2_box]
+                    )
+                    next_btn_2.click(
+                        fn=next_2, 
+                        inputs=[age, step_data, step, lang_state],
+                        outputs=[step_data, step, step2_box, step3_box, error_age]
+                    )
+                    next_btn_3.click(
+                        fn=next_3, 
+                        inputs=[genre, step_data, step],
+                        outputs=[step_data, step, step3_box, step4_box]
+                    )
+                    next_btn_4.click(
+                        fn=next_4, 
+                        inputs=[poids, step_data, step, lang_state],
+                        outputs=[step_data, step, step4_box, step5_box, error_poids]
+                    )
+                    next_btn_5.click(
+                        fn=next_5, 
+                        inputs=[taille, step_data, step, lang_state],
+                        outputs=[step_data, step, step5_box, step6_box, error_taille]
+                    )
+                    next_btn_6.click(
+                        fn=next_6, 
+                        inputs=[activite, step_data, step],
+                        outputs=[step_data, step, step6_box, step7_box]
+                    )
+                    next_btn_7.click(
+                        fn=next_7, 
+                        inputs=[objectif, step_data, step, history, lang_state],
+                        outputs=[step_data, step, done_msg, step7_box, step8_box, history]
+                    )
             # ---------------------------
             # TAB 2: NUTRITION CHATBOT
             # ---------------------------
             with gr.Tab("Nutrition ChatBot"):
-                chatbot_title_md = gr.Markdown(translations["fr"]["chatbot_title"])
-                chatbot = gr.Chatbot(height=200)
-                with gr.Row():
+                with gr.Column(scale=1):
+                    chatbot_title_md = gr.Markdown(translations["fr"]["chatbot_title"], elem_id="chatbot_title_md")
+                with gr.Column():
+                    chatbot = gr.Chatbot(height=300)
                     msg = gr.Textbox(placeholder=translations["fr"]["msg_placeholder"], label=translations["fr"]["msg_label"])
-                with gr.Row():
-                    send = gr.Button(translations["fr"]["send"])
-                    reset = gr.Button(translations["fr"]["reset"])
-                send.click(
-                    fn=chat_with_chatgpt,
-                    inputs=[msg, history, lang_state],
-                    outputs=[msg, chatbot, history]
-                )
-                reset.click(lambda: ([], []), outputs=[chatbot, history])
-                
-                # ---------------------------
-                # NEW: VOICE CHAT SECTION
-                # ---------------------------
-                with gr.Row():
+                    with gr.Row():
+                        send = gr.Button(translations["fr"]["send"])
+                        reset = gr.Button(translations["fr"]["reset"])
+                    send.click(
+                        fn=chat_with_chatgpt,
+                        inputs=[msg, history, lang_state],
+                        outputs=[msg, chatbot, history]
+                    )
+                    reset.click(lambda: ([], []), outputs=[chatbot, history])
+                    
+                    # Voice Chat Section
+                    voice_section_md = gr.Markdown(translations["fr"]["voice_section_header"])
                     voice_input = gr.Audio(type="filepath", label=translations["fr"]["voice_input_label"])
-                with gr.Row():
                     speak_button = gr.Button(translations["fr"]["speak_button"])
-                with gr.Row():
                     voice_output = gr.Audio(label=translations["fr"]["voice_output_label"])
-                speak_button.click(
-                    fn=voice_chat_with_chatgpt,
-                    inputs=[voice_input, history, lang_state],
-                    outputs=[voice_output, history, history]
-                )
+                    speak_button.click(
+                        fn=voice_chat_with_chatgpt,
+                        inputs=[voice_input, history, lang_state],
+                        outputs=[voice_output, history, history]
+                    )
         
         # When the user changes the language, update all texts and radio choices.
         lang_dropdown.change(
@@ -422,7 +413,8 @@ def create_interface():
                 error_taille,       # reset error_height
                 voice_input,        # update voice input label
                 speak_button,       # update speak button text
-                voice_output        # update voice output label
+                voice_output,       # update voice output label
+                voice_section_md    # update voice section header text
             ]
         ).then(
             lambda lang: lang,

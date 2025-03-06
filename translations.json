@@ -31,7 +31,13 @@
       "greeting": "Bonjour {name}! J'ai bien noté que vous avez {age} ans, que vous êtes {genre}, que vous pesez {poids} kg, mesurez {taille} cm, que votre niveau d'activité est {activite} et que votre objectif est '{objectif}'. Comment puis-je vous aider avec votre nutrition aujourd'hui ?",
       "genre_options": ["Homme", "Femme"],
       "activite_options": ["Sédentaire", "Modéré", "Athlétique"],
-      "objectif_options": ["Perte de poids", "Gains musculaires", "Autre"]
+      "objectif_options": ["Perte de poids", "Gains musculaires", "Autre"],
+      "voice_input_label": "Enregistrer votre message vocal",
+      "speak_button": "Parler",
+      "voice_output_label": "Réponse vocale",
+      "voice_section_header": "### Ou utilisez la Voix",
+      "tab_form_title": "Formulaire personnalisé",
+      "tab_chatbot_title": "Nutrition ChatBot"
     },
     "en": {
       "welcome_form": "## Welcome to our Personalized Form\nPlease fill in the information below to receive nutritional recommendations tailored to your profile. You will go through several successive steps: first name, age, gender, weight, height, activity level, and goal.",
@@ -65,7 +71,13 @@
       "greeting": "Hello {name}! I have noted that you are {age} years old, you are {genre}, you weigh {poids} kg, are {taille} cm tall, your activity level is {activite} and your goal is '{objectif}'. How can I assist you with your nutrition today?",
       "genre_options": ["Male", "Female"],
       "activite_options": ["Sedentary", "Moderate", "Athletic"],
-      "objectif_options": ["Weight Loss", "Muscle Gain", "Other"]
+      "objectif_options": ["Weight Loss", "Muscle Gain", "Other"],
+      "voice_input_label": "Record your voice message",
+      "speak_button": "Speak",
+      "voice_output_label": "Voice response",
+      "voice_section_header": "### Or use Voice Input",
+      "tab_form_title": "Personalized Form",
+      "tab_chatbot_title": "Nutrition ChatBot"
     }
   }
   
