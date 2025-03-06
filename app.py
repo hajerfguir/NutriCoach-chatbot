@@ -2,6 +2,8 @@ import gradio as gr
 import openai
 import yaml
 import json
+from gtts import gTTS
+import tempfile
 
 # Load API key from configuration file
 with open("config.yaml") as f:
@@ -63,7 +65,7 @@ def finish_form(step_data, lang="fr"):
     return conseiller_nutrition(age, genre, poids, taille, activite, objectif, lang)
 
 # ---------------------------------------------------------------------------------------
-# 2) CHATBOT FUNCTION USING THE OPENAI CHATGPT API
+# 2) CHATBOT FUNCTION USING THE OPENAI CHATGPT API (TEXT)
 # ---------------------------------------------------------------------------------------
 def chat_with_chatgpt(message, history, lang):
     if history is None:
@@ -92,6 +94,56 @@ def chat_with_chatgpt(message, history, lang):
     
     history.append((message, reply))
     return "", history, history
+
+# ---------------------------------------------------------------------------------------
+# NEW: VOICE CHAT FUNCTION USING THE OPENAI WHISPER API AND gTTS FOR TTS
+# ---------------------------------------------------------------------------------------
+def voice_chat_with_chatgpt(audio_file, history, lang):
+    if audio_file is None:
+        # No audio input was provided.
+        return None, history, history
+    try:
+        # Transcribe the audio file using OpenAI's Whisper (model "whisper-1")
+        with open(audio_file, "rb") as af:
+            transcript = openai.Audio.transcribe("whisper-1", af)
+        message = transcript["text"].strip()
+    except Exception as e:
+        message = f"Erreur lors de la transcription audio: {str(e)}"
+    
+    if history is None:
+        history = []
+    
+    conversation = [
+        {"role": "system", "content": translations[lang]["system_prompt"]}
+    ]
+    for user_msg, assistant_msg in history:
+        conversation.append({"role": "user", "content": user_msg})
+        conversation.append({"role": "assistant", "content": assistant_msg})
+    conversation.append({"role": "user", "content": message})
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=conversation,
+            temperature=0.7,
+            max_tokens=150,
+        )
+        reply = response["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        reply = f"Erreur lors de l'appel à l'API: {str(e)}"
+    
+    history.append((message, reply))
+    
+    # Convert the reply text to speech using gTTS
+    try:
+        tts = gTTS(reply, lang="fr" if lang=="fr" else "en")
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+        tts.save(temp_file.name)
+        voice_response_file = temp_file.name
+    except Exception as e:
+        voice_response_file = None
+    
+    return voice_response_file, history, history
 
 # ---------------------------------------------------------------------------------------
 # 3) MULTI-STEP FORM LOGIC (INCL. VALIDATION)
@@ -186,7 +238,10 @@ def update_ui_texts(lang):
         gr.update(choices=translations[lang]["objectif_options"]),      # update objectif radio
         "",  # reset error_age text
         "",  # reset error_weight text
-        ""   # reset error_height text
+        "",  # reset error_height text
+        translations[lang]["voice_input_label"],      # voice input label
+        translations[lang]["speak_button"],           # speak button text
+        translations[lang]["voice_output_label"]      # voice output label
     )
 
 # ---------------------------------------------------------------------------------------
@@ -319,20 +374,34 @@ def create_interface():
                 with gr.Row():
                     send = gr.Button(translations["fr"]["send"])
                     reset = gr.Button(translations["fr"]["reset"])
-                
                 send.click(
                     fn=chat_with_chatgpt,
                     inputs=[msg, history, lang_state],
                     outputs=[msg, chatbot, history]
                 )
                 reset.click(lambda: ([], []), outputs=[chatbot, history])
+                
+                # ---------------------------
+                # NEW: VOICE CHAT SECTION
+                # ---------------------------
+                with gr.Row():
+                    voice_input = gr.Audio(type="filepath", label=translations["fr"]["voice_input_label"])
+                with gr.Row():
+                    speak_button = gr.Button(translations["fr"]["speak_button"])
+                with gr.Row():
+                    voice_output = gr.Audio(label=translations["fr"]["voice_output_label"])
+                speak_button.click(
+                    fn=voice_chat_with_chatgpt,
+                    inputs=[voice_input, history, lang_state],
+                    outputs=[voice_output, history, history]
+                )
         
         # When the user changes the language, update all texts and radio choices.
         lang_dropdown.change(
             fn=update_ui_texts,
             inputs=lang_dropdown,
             outputs=[
-                form_intro,         # update form intro
+                form_intro,         # update form intro (Markdown)
                 step1_md,           # step1 markdown
                 step2_md,           # step2 markdown
                 step3_md,           # step3 markdown
@@ -350,7 +419,10 @@ def create_interface():
                 objectif,           # update objectif radio choices
                 error_age,          # reset error_age
                 error_poids,        # reset error_weight
-                error_taille        # reset error_height
+                error_taille,       # reset error_height
+                voice_input,        # update voice input label
+                speak_button,       # update speak button text
+                voice_output        # update voice output label
             ]
         ).then(
             lambda lang: lang,
