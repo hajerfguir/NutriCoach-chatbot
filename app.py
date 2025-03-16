@@ -17,7 +17,7 @@ with open("translations.json", "r", encoding="utf-8") as f:
 # Optional: Test call to GPT‑3.5‑turbo (prints answer to console)
 messages = [
     {"role": "system", "content": "You are a nutritionist."},
-    {"role": "user", "content": "Help out someone reach their nutrition goals as they talk to you."},
+    {"role": "user", "content": "Help out someone reach their nutrition goals as they talk to you. You SHOULD NOT answer any questions that are not related to nutrition."},
 ]
 ans = openai.ChatCompletion.create(
     model="gpt-3.5-turbo",
