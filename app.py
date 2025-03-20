@@ -4,6 +4,7 @@ import yaml
 import json
 from gtts import gTTS
 import tempfile
+from datetime import datetime
 
 # Load API key from configuration file
 with open("config.yaml") as f:
@@ -71,8 +72,10 @@ def chat_with_chatgpt(message, history, lang):
     if history is None:
         history = []
     
+    system_prompt = translations[lang]["system_prompt"] + "\n\nRemember to encourage regular check-ins and follow-ups. Ask about progress and suggest weekly updates."
+    
     conversation = [
-        {"role": "system", "content": translations[lang]["system_prompt"]}
+        {"role": "system", "content": system_prompt}
     ]
     
     for user_msg, assistant_msg in history:
@@ -249,172 +252,130 @@ def update_ui_texts(lang):
 # 5) APPLY GREEN THEME, ADD LOGO, AND BUILD INTERFACE WITH IMPROVED UI LAYOUT
 # ---------------------------------------------------------------------------------------
 def create_interface():
-    custom_theme = gr.themes.Soft(
+    # Create a simple green theme
+    theme = gr.themes.Soft(
         primary_hue="green",
-        font=["Helvetica Neue", "Arial", "sans-serif"]
+        secondary_hue="green",
+    ).set(
+        button_primary_background_fill="*primary_600",
+        button_primary_background_fill_hover="*primary_700",
+        block_title_text_size="*text_lg",
+        block_label_text_size="*text_md",
     )
 
-    with gr.Blocks(theme=custom_theme) as demo:
-        # HEADER: logo, title, and language selector in a row
-        with gr.Row(elem_id="header"):
-            with gr.Column(scale=1, min_width=100):
-                gr.Markdown("")
-            with gr.Column(scale=3):
-                gr.Image("logo.png", show_label=False, elem_id="logo", width=100)
+    with gr.Blocks(theme=theme) as demo:
+        # Header with logo
+        with gr.Row():
             with gr.Column(scale=1):
-                lang_dropdown = gr.Dropdown(choices=["fr", "en"], value="fr", label="Select Language / Choisir la langue")
+                gr.Markdown("# 🥗 Nutrition Coach")
+            with gr.Column(scale=2):
+                gr.Image("logo.png", show_label=False, width=100)
+            with gr.Column(scale=1):
+                lang_dropdown = gr.Dropdown(
+                    choices=["fr", "en"],
+                    value="fr",
+                    label="Language / Langue"
+                )
                 lang_state = gr.State("fr")
-        
-        # Global states for multi‑step form and ChatBot conversation
-        step = gr.State(1)
+
+        # States
         step_data = gr.State({
-            "prenom": "",
-            "age": 0,
-            "genre": "",
-            "poids": 0,
-            "taille": 0,
-            "activite": "",
-            "objectif": ""
+            "prenom": "", "age": 25, "genre": "",
+            "poids": 70, "taille": 170,
+            "activite": "", "objectif": ""
         })
         history = gr.State([])
 
         with gr.Tabs():
-            # ---------------------------
-            # TAB 1: PERSONALIZED FORM
-            # ---------------------------
-            with gr.Tab("Formulaire personnalisé"):
-                with gr.Column(scale=1):
-                    form_intro = gr.Markdown(translations["fr"]["welcome_form"], elem_id="form_intro")
-                with gr.Column():
-                    with gr.Group(visible=True) as step1_box:
-                        step1_md = gr.Markdown(translations["fr"]["step1"], elem_id="step1_md")
-                        prenom = gr.Textbox(show_label=False, placeholder="Entrez votre prénom ici")
-                        next_btn_1 = gr.Button("Valider")
-                    with gr.Group(visible=False) as step2_box:
-                        step2_md = gr.Markdown(translations["fr"]["step2"], elem_id="step2_md")
-                        age = gr.Number(show_label=False, value=25, minimum=0)
-                        error_age = gr.Markdown("", visible=False)
-                        next_btn_2 = gr.Button("Valider")
-                    with gr.Group(visible=False) as step3_box:
-                        step3_md = gr.Markdown(translations["fr"]["step3"], elem_id="step3_md")
-                        genre = gr.Radio(choices=translations["fr"]["genre_options"], value=translations["fr"]["genre_options"][0], show_label=False)
-                        next_btn_3 = gr.Button("Valider")
-                    with gr.Group(visible=False) as step4_box:
-                        step4_md = gr.Markdown(translations["fr"]["step4"], elem_id="step4_md")
-                        poids = gr.Number(show_label=False, value=70, minimum=0)
-                        error_poids = gr.Markdown("", visible=False)
-                        next_btn_4 = gr.Button("Valider")
-                    with gr.Group(visible=False) as step5_box:
-                        step5_md = gr.Markdown(translations["fr"]["step5"], elem_id="step5_md")
-                        taille = gr.Number(show_label=False, value=170, minimum=0)
-                        error_taille = gr.Markdown("", visible=False)
-                        next_btn_5 = gr.Button("Valider")
-                    with gr.Group(visible=False) as step6_box:
-                        step6_md = gr.Markdown(translations["fr"]["step6"], elem_id="step6_md")
-                        activite = gr.Radio(choices=translations["fr"]["activite_options"], value=translations["fr"]["activite_options"][1], show_label=False)
-                        next_btn_6 = gr.Button("Valider")
-                    with gr.Group(visible=False) as step7_box:
-                        step7_md = gr.Markdown(translations["fr"]["step7"], elem_id="step7_md")
-                        objectif = gr.Radio(choices=translations["fr"]["objectif_options"], value=translations["fr"]["objectif_options"][0], show_label=False)
-                        next_btn_7 = gr.Button("Valider")
-                    with gr.Group(visible=False) as step8_box:
-                        final_md = gr.Markdown(translations["fr"]["final"], elem_id="final_md")
-                        done_msg = gr.Markdown("", show_label=False)
+            # Personal Information Tab
+            with gr.Tab("📋 Personal Information"):
+                with gr.Column(scale=1, min_width=600):  # Replace Box with Column
+                    form_intro = gr.Markdown(translations["fr"]["welcome_form"])
                     
-                    # STEP FUNCTIONS (linking steps)
-                    next_btn_1.click(
-                        fn=next_1, 
-                        inputs=[prenom, step_data, step],
-                        outputs=[step_data, step, step1_box, step2_box]
+                    prenom = gr.Textbox(
+                        label="Name",
+                        placeholder="Enter your name"
                     )
-                    next_btn_2.click(
-                        fn=next_2, 
-                        inputs=[age, step_data, step, lang_state],
-                        outputs=[step_data, step, step2_box, step3_box, error_age]
-                    )
-                    next_btn_3.click(
-                        fn=next_3, 
-                        inputs=[genre, step_data, step],
-                        outputs=[step_data, step, step3_box, step4_box]
-                    )
-                    next_btn_4.click(
-                        fn=next_4, 
-                        inputs=[poids, step_data, step, lang_state],
-                        outputs=[step_data, step, step4_box, step5_box, error_poids]
-                    )
-                    next_btn_5.click(
-                        fn=next_5, 
-                        inputs=[taille, step_data, step, lang_state],
-                        outputs=[step_data, step, step5_box, step6_box, error_taille]
-                    )
-                    next_btn_6.click(
-                        fn=next_6, 
-                        inputs=[activite, step_data, step],
-                        outputs=[step_data, step, step6_box, step7_box]
-                    )
-                    next_btn_7.click(
-                        fn=next_7, 
-                        inputs=[objectif, step_data, step, history, lang_state],
-                        outputs=[step_data, step, done_msg, step7_box, step8_box, history]
-                    )
-            # ---------------------------
-            # TAB 2: NUTRITION CHATBOT
-            # ---------------------------
-            with gr.Tab("Nutrition ChatBot"):
-                with gr.Column(scale=1):
-                    chatbot_title_md = gr.Markdown(translations["fr"]["chatbot_title"], elem_id="chatbot_title_md")
-                with gr.Column():
-                    chatbot = gr.Chatbot(height=300)
-                    msg = gr.Textbox(placeholder=translations["fr"]["msg_placeholder"], label=translations["fr"]["msg_label"])
+                    
                     with gr.Row():
-                        send = gr.Button(translations["fr"]["send"])
-                        reset = gr.Button(translations["fr"]["reset"])
-                    send.click(
-                        fn=chat_with_chatgpt,
-                        inputs=[msg, history, lang_state],
-                        outputs=[msg, chatbot, history]
-                    )
-                    reset.click(lambda: ([], []), outputs=[chatbot, history])
+                        age = gr.Number(
+                            label="Age",
+                            value=25,
+                            minimum=0,
+                            info="Must be between 16 and 100 years"
+                        )
+                        taille = gr.Number(
+                            label="Height (cm)",
+                            value=170,
+                            minimum=0,
+                            info="Height in centimeters"
+                        )
+                        poids = gr.Number(
+                            label="Weight (kg)",
+                            value=70,
+                            minimum=0,
+                            info="Weight in kilograms"
+                        )
                     
-                    # Voice Chat Section
-                    voice_section_md = gr.Markdown(translations["fr"]["voice_section_header"])
-                    voice_input = gr.Audio(type="filepath", label=translations["fr"]["voice_input_label"])
-                    speak_button = gr.Button(translations["fr"]["speak_button"])
-                    voice_output = gr.Audio(label=translations["fr"]["voice_output_label"])
-                    speak_button.click(
-                        fn=voice_chat_with_chatgpt,
-                        inputs=[voice_input, history, lang_state],
-                        outputs=[voice_output, history, history]
+                    genre = gr.Radio(
+                        choices=translations["fr"]["genre_options"],
+                        label="Gender",
+                        value=translations["fr"]["genre_options"][0]
                     )
-        
-        # When the user changes the language, update all texts and radio choices.
+                    
+                    activite = gr.Radio(
+                        choices=translations["fr"]["activite_options"],
+                        label="Activity Level",
+                        value=translations["fr"]["activite_options"][1]
+                    )
+                    
+                    objectif = gr.Radio(
+                        choices=translations["fr"]["objectif_options"],
+                        label="Objective",
+                        value=translations["fr"]["objectif_options"][0]
+                    )
+                    
+                    validation_message = gr.Markdown("")
+                    submit_btn = gr.Button("💾 Save Information", variant="primary")
+                    output_text = gr.Markdown("")
+
+            # Chatbot Tab
+            with gr.Tab("💬 Nutrition ChatBot"):
+                with gr.Column(scale=1, min_width=600):  # Replace Box with Column
+                    chatbot = gr.Chatbot(
+                        height=400,
+                        bubble_full_width=False,
+                        show_label=False
+                    )
+                    
+                    with gr.Row():
+                        msg = gr.Textbox(
+                            placeholder="Ask me anything about nutrition...",
+                            label="Your message",
+                            scale=4
+                        )
+                        send = gr.Button("Send 📤", scale=1, variant="primary")
+                    
+                    reset = gr.Button("Clear Chat 🗑️", variant="secondary")
+                    
+                    # Voice Section
+                    gr.Markdown("## 🎤 Voice Interaction")
+                    with gr.Row():
+                        voice_input = gr.Audio(
+                            type="filepath",
+                            label="Record your message"
+                        )
+                        speak_button = gr.Button("Convert to Text 🗣️", variant="primary")
+                    voice_output = gr.Audio(label="AI Response")
+
+        # Event handlers
         lang_dropdown.change(
             fn=update_ui_texts,
             inputs=lang_dropdown,
             outputs=[
-                form_intro,         # update form intro (Markdown)
-                step1_md,           # step1 markdown
-                step2_md,           # step2 markdown
-                step3_md,           # step3 markdown
-                step4_md,           # step4 markdown
-                step5_md,           # step5 markdown
-                step6_md,           # step6 markdown
-                step7_md,           # step7 markdown
-                final_md,           # final markdown
-                chatbot_title_md,   # chatbot tab title
-                msg,                # update msg Textbox (placeholder and label)
-                send,               # send button text
-                reset,              # reset button text
-                genre,              # update genre radio choices
-                activite,           # update activite radio choices
-                objectif,           # update objectif radio choices
-                error_age,          # reset error_age
-                error_poids,        # reset error_weight
-                error_taille,       # reset error_height
-                voice_input,        # update voice input label
-                speak_button,       # update speak button text
-                voice_output,       # update voice output label
-                voice_section_md    # update voice section header text
+                form_intro, output_text, msg, send, reset,
+                genre, activite, objectif, validation_message,
+                voice_input, speak_button, voice_output
             ]
         ).then(
             lambda lang: lang,
@@ -422,7 +383,176 @@ def create_interface():
             outputs=lang_state
         )
         
+        submit_btn.click(
+            fn=update_user_info,
+            inputs=[step_data, history, lang_state],
+            outputs=[output_text, history]
+        )
+
+        # Chat functionality
+        msg.submit(
+            fn=chat_with_chatgpt,
+            inputs=[msg, history, lang_state],
+            outputs=[msg, chatbot, history]
+        )
+        
+        send.click(
+            fn=chat_with_chatgpt,
+            inputs=[msg, history, lang_state],
+            outputs=[msg, chatbot, history]
+        )
+        
+        reset.click(
+            lambda: ([], []),
+            outputs=[chatbot, history]
+        )
+        
+        speak_button.click(
+            fn=voice_chat_with_chatgpt,
+            inputs=[voice_input, history, lang_state],
+            outputs=[voice_output, history, chatbot]
+        )
+
+        # Update form data when inputs change
+        for input_component in [prenom, age, genre, poids, taille, activite, objectif]:
+            input_component.change(
+                fn=lambda *args: {
+                    "prenom": args[0],
+                    "age": args[1],
+                    "genre": args[2],
+                    "poids": args[3],
+                    "taille": args[4],
+                    "activite": args[5],
+                    "objectif": args[6]
+                },
+                inputs=[prenom, age, genre, poids, taille, activite, objectif],
+                outputs=[step_data]
+            )
+        
     return demo
+
+def validate_inputs(weight, target_weight, height, age):
+    messages = []
+    
+    # Basic health checks
+    if weight < 30 or weight > 300:
+        messages.append("⚠️ The entered current weight seems unrealistic. Please verify.")
+    
+    if target_weight < 40 or target_weight > 200:
+        messages.append("⚠️ The target weight seems unrealistic. Please consult a healthcare professional.")
+    
+    if abs(target_weight - weight) > weight * 0.3:
+        messages.append("⚠️ Attempting to change weight by more than 30% may be unsafe. Please consult a healthcare professional.")
+    
+    if height < 120 or height > 250:
+        messages.append("⚠️ The entered height seems unrealistic. Please verify.")
+    
+    if age < 16 or age > 100:
+        messages.append("⚠️ This application is designed for users between 16 and 100 years old.")
+    
+    return messages
+
+def get_chat_response(user_info, chat_history):
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    
+    system_prompt = """You are a friendly and knowledgeable nutrition coach. Provide personalized advice based on the user's information.
+    Always encourage healthy, sustainable habits. Include specific meal suggestions and exercise tips.
+    End your response with a reminder to check back in a week for progress tracking.
+    Keep responses concise but informative."""
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": f"""User Info (Date: {current_date}):
+        - Current Weight: {user_info['weight']}kg
+        - Target Weight: {user_info['target_weight']}kg
+        - Height: {user_info['height']}cm
+        - Age: {user_info['age']}
+        - Gender: {user_info['gender']}
+        - Activity Level: {user_info['activity_level']}
+        - Diet Preference: {user_info['diet_preference']}
+        
+        Previous chat history: {chat_history}
+        
+        Provide personalized nutrition and exercise advice."""}
+    ]
+
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        max_tokens=500,
+        temperature=0.7
+    )
+    
+    return response.choices[0].message['content']
+
+def update_chat(weight, target_weight, height, age, gender, activity_level, diet_preference, chat_history):
+    # Validate inputs first
+    validation_messages = validate_inputs(weight, target_weight, height, age)
+    
+    if validation_messages:
+        return chat_history + "\n\n" + "\n".join(validation_messages)
+    
+    # Prepare user info dictionary
+    user_info = {
+        "weight": weight,
+        "target_weight": target_weight,
+        "height": height,
+        "age": age,
+        "gender": gender,
+        "activity_level": activity_level,
+        "diet_preference": diet_preference
+    }
+    
+    # Get response from ChatGPT
+    response = get_chat_response(user_info, chat_history)
+    
+    # Update chat history
+    new_chat_history = f"{chat_history}\n\nNutrition Coach: {response}" if chat_history else f"Nutrition Coach: {response}"
+    
+    return new_chat_history
+
+def validate_form_data(data):
+    messages = []
+    
+    # Weight validation
+    if data["poids"] < 30 or data["poids"] > 300:
+        messages.append("⚠️ The entered weight seems unrealistic. Please verify.")
+    
+    # Height validation
+    if data["taille"] < 120 or data["taille"] > 250:
+        messages.append("⚠️ The entered height seems unrealistic. Please verify.")
+    
+    # Age validation
+    if data["age"] < 16 or data["age"] > 100:
+        messages.append("⚠️ This application is designed for users between 16 and 100 years old.")
+    
+    return messages
+
+def update_user_info(form_data, history, lang):
+    validation_messages = validate_form_data(form_data)
+    
+    if validation_messages:
+        return "\n".join(validation_messages), history
+    
+    final_text = finish_form(form_data, lang)
+    name = form_data["prenom"]
+    age = form_data["age"]
+    genre = form_data["genre"]
+    poids = form_data["poids"]
+    taille = form_data["taille"]
+    activite = form_data["activite"]
+    objectif = form_data["objectif"]
+    
+    greeting = translations[lang]["greeting"].format(
+        name=name, age=age, genre=genre, poids=poids, 
+        taille=taille, activite=activite, objectif=objectif
+    )
+    
+    # Clear previous history and start fresh with updated info
+    history.clear()
+    history.append((" ", greeting))
+    
+    return final_text, history
 
 if __name__ == "__main__":
     interface = create_interface()
