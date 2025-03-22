@@ -14,6 +14,155 @@ openai.api_key = config_yaml['token']
 # Load translation mappings from JSON
 with open("translations.json", "r", encoding="utf-8") as f:
     translations = json.load(f)
+    
+# TOGGER THEME JS
+JS_THEME = """
+function toggleTheme() {
+    var theme = localStorage.getItem("theme") || "dark";
+    var isDarkMode = (theme === "dark");
+    var gradioContainer = document.querySelector(".gradio-container");
+    var targetedSpans = Array.from(document.querySelectorAll("span")).filter(function(span) {
+        return span.innerText === "Enable Text-to-Speech";
+    });
+    if (isDarkMode) {
+        gradioContainer.classList.remove("dark-mode");
+        gradioContainer.classList.add("light-mode");
+        targetedSpans.forEach(function(span) {
+            span.classList.remove("dark-mode");
+            span.classList.add("light-mode");
+        });
+        localStorage.setItem("theme", "light");
+        document.getElementById("theme-toggle-btn").innerHTML = "☼";
+    } else {
+        gradioContainer.classList.remove("light-mode");
+        gradioContainer.classList.add("dark-mode");
+        targetedSpans.forEach(function(span) {
+            span.classList.remove("light-mode");
+            span.classList.add("dark-mode");
+        });
+        localStorage.setItem("theme", "dark");
+        document.getElementById("theme-toggle-btn").innerHTML = "☾";
+    }
+}
+"""
+css_styles = """
+.gradio-container.light-mode {
+    background-color: #ffffff;
+    color: #000000;
+}
+.gradio-container.dark-mode {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+
+/* Inputs always dark */
+input, textarea {
+    background-color: #2c2f36 !important;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
+}
+
+/* Markdown and label text */
+.light-mode .gr-markdown,
+.light-mode .gradio-container .gr-markdown,
+.light-mode h1, 
+.light-mode h2,
+.light-mode h3,
+.light-mode h4,
+.light-mode h5,
+.light-mode p,
+.light-mode label {
+  color: #000000 !important;
+}
+.dark-mode h1, 
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode p,
+.dark-mode label {
+  color: #ffffff !important;
+}
+
+/* Tabs (Fix "Nutrition ChatBot" visibility) */
+.gradio-container .gr-tab-label {
+    opacity: 1 !important;
+    color: #000 !important;
+}
+.dark-mode .gr-tab-label {
+    color: #fff !important;
+}
+.gradio-container .gr-tab-label.selected {
+    font-weight: bold;
+    border-bottom: 2px solid #22c55e;
+}
+.typing-text::after {
+    content: '|';
+    animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+#header-section {
+    text-align: center;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+#logo {
+    margin: 0 auto;
+    display: block;
+}
+
+#intro-banner {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #22c55e;
+}
+
+#toggle-row {
+    justify-content: center;
+    margin-top: 10px;
+}
+#header-section {
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 0;
+}
+
+#logo {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 20px;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+}
+
+#intro-banner {
+    font-size: 1.4em;
+    font-weight: 800;
+    color: #22c55e;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+#toggle-row {
+    justify-content: center;
+    align-items: center;
+    margin-top: -10px;
+    margin-bottom: 20px;
+}
+.gradio-container {
+    background-color: #1e1e1e;
+    color: #ffffff;
+}
+#toggle-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    margin-top: 15px;
+}
+"""
 
 # Optional: Test call to GPT‑3.5‑turbo (prints answer to console)
 messages = [
@@ -68,22 +217,28 @@ def finish_form(step_data, lang="fr"):
 # ---------------------------------------------------------------------------------------
 # 2) CHATBOT FUNCTION USING THE OPENAI CHATGPT API (TEXT)
 # ---------------------------------------------------------------------------------------
-def chat_with_chatgpt(message, history, lang):
+def chat_with_chatgpt(message, history, lang, file=None):
     if history is None:
         history = []
-    
-    system_prompt = translations[lang]["system_prompt"] + "\n\nRemember to encourage regular check-ins and follow-ups. Ask about progress and suggest weekly updates."
-    
+
+    file_note = ""
+    if file:
+        file_name = file.split("/")[-1]
+        file_note = f"\n[📎 Attached file: {file_name}]"
+
+    system_prompt = translations[lang]["system_prompt"]
+
     conversation = [
         {"role": "system", "content": system_prompt}
     ]
-    
+
     for user_msg, assistant_msg in history:
         conversation.append({"role": "user", "content": user_msg})
         conversation.append({"role": "assistant", "content": assistant_msg})
-    
-    conversation.append({"role": "user", "content": message})
-    
+
+    full_message = message + file_note
+    conversation.append({"role": "user", "content": full_message})
+
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -93,10 +248,11 @@ def chat_with_chatgpt(message, history, lang):
         )
         reply = response["choices"][0]["message"]["content"].strip()
     except Exception as e:
-        reply = f"Erreur lors de l'appel à l'API: {str(e)}"
-    
-    history.append((message, reply))
+        reply = f"Error calling the API: {str(e)}"
+
+    history.append((full_message, reply))
     return "", history, history
+
 
 # ---------------------------------------------------------------------------------------
 # NEW: VOICE CHAT FUNCTION USING THE OPENAI WHISPER API AND gTTS FOR TTS
@@ -223,30 +379,59 @@ def next_7(objectif_val, step_data_val, step_val, chat_history, lang):
 # ---------------------------------------------------------------------------------------
 def update_ui_texts(lang):
     return (
-        translations[lang]["welcome_form"],         # form_intro (Markdown)
-        translations[lang]["step1"],                  # step1 text
-        translations[lang]["step2"],                  # step2 text
-        translations[lang]["step3"],                  # step3 text
-        translations[lang]["step4"],                  # step4 text
-        translations[lang]["step5"],                  # step5 text
-        translations[lang]["step6"],                  # step6 text
-        translations[lang]["step7"],                  # step7 text
-        translations[lang]["final"],                  # final text
-        translations[lang]["chatbot_title"],          # chatbot title
-        gr.update(placeholder=translations[lang]["msg_placeholder"], label=translations[lang]["msg_label"]),  # update msg Textbox
-        translations[lang]["send"],                   # send button
-        translations[lang]["reset"],                  # reset button
-        gr.update(choices=translations[lang]["genre_options"]),       # update genre radio
-        gr.update(choices=translations[lang]["activite_options"]),      # update activite radio
-        gr.update(choices=translations[lang]["objectif_options"]),      # update objectif radio
-        "",  # reset error_age text
-        "",  # reset error_weight text
-        "",  # reset error_height text
-        translations[lang]["voice_input_label"],      # voice input label
-        translations[lang]["speak_button"],           # speak button text
-        translations[lang]["voice_output_label"],     # voice output label
-        translations[lang]["voice_section_header"]    # voice section header text
+        translations[lang]["welcome_form"],  # form_intro
+        translations[lang]["step1"],  # step1
+        translations[lang]["step2"],  # step2
+        translations[lang]["step3"],  # step3
+        translations[lang]["step4"],  # step4
+        translations[lang]["step5"],  # step5
+        translations[lang]["step6"],  # step6
+        translations[lang]["step7"],  # step7
+        translations[lang]["final"],  # final
+        translations[lang]["chatbot_title"],  # chatbot title
+        gr.update(placeholder=translations[lang]["msg_placeholder"], label=translations[lang]["msg_label"]),  # msg box
+        translations[lang]["send"],  # send btn
+        translations[lang]["reset"],  # reset btn
+        gr.update(choices=translations[lang]["genre_options"]),  # genre
+        gr.update(choices=translations[lang]["activite_options"]),  # activite
+        gr.update(choices=translations[lang]["objectif_options"]),  # objectif
+        gr.update(label=translations[lang]["name_label"], placeholder=translations[lang]["name_placeholder"]),  # prenom
+        gr.update(label=translations[lang]["age_label"], info=translations[lang]["age_info"]),  # age
+        gr.update(label=translations[lang]["height_label"], info=translations[lang]["height_info"]),  # taille
+        gr.update(label=translations[lang]["weight_label"], info=translations[lang]["weight_info"]),  # poids
+        "",  # error age
+        "",  # error weight
+        "",  # error height
+        translations[lang]["voice_input_label"],
+        translations[lang]["speak_button"],
+        translations[lang]["voice_output_label"],
+        translations[lang]["voice_section_header"]
     )
+def update_ui_texts(lang):
+    return (
+        translations[lang]["welcome_form"],  # form_intro
+        translations[lang]["final"],         # output_text
+        gr.update(placeholder=translations[lang]["msg_placeholder"], label=translations[lang]["msg_label"]),  # msg
+        translations[lang]["send"],          # send
+        translations[lang]["reset"],         # reset
+        gr.update(choices=translations[lang]["genre_options"], label=translations[lang]["gender_label"]),  # genre
+        gr.update(choices=translations[lang]["activite_options"], label=translations[lang]["activity_label"]),  # activite
+        gr.update(choices=translations[lang]["objectif_options"], label=translations[lang]["objective_label"]),  # objectif
+        "",                                  # validation_message
+        gr.update(label=translations[lang]["voice_input_label"]),  # voice_input
+        gr.update(value=translations[lang]["speak_button"]),       # speak_button
+        gr.update(value=translations[lang]["voice_output_label"]), # voice_output
+        gr.update(label=translations[lang]["name_label"], placeholder=translations[lang]["name_placeholder"]),  # prenom
+        gr.update(label=translations[lang]["age_label"], info=translations[lang]["age_info"]),  # age
+        gr.update(label=translations[lang]["height_label"], info=translations[lang]["height_info"]),  # taille
+        gr.update(label=translations[lang]["weight_label"], info=translations[lang]["weight_info"]),  # poids
+        gr.update(value=translations[lang]["voice_section_header"]),  # voice_header_md
+        gr.update(value=translations[lang]["voice_output_label"]),    # ai_response_md
+        gr.update(label=translations[lang]["file_upload_label"])      # file_input 
+    )
+
+
+
 
 # ---------------------------------------------------------------------------------------
 # 5) APPLY GREEN THEME, ADD LOGO, AND BUILD INTERFACE WITH IMPROVED UI LAYOUT
@@ -262,21 +447,39 @@ def create_interface():
         block_title_text_size="*text_lg",
         block_label_text_size="*text_md",
     )
+    lang = "fr"  # default
+    tr = translations[lang]  # shorter alias
+    with gr.Blocks(js=JS_THEME, css=css_styles, theme=theme) as demo:
 
-    with gr.Blocks(theme=theme) as demo:
-        # Header with logo
         with gr.Row():
-            with gr.Column(scale=1):
-                gr.Markdown("# 🥗 Nutrition Coach")
-            with gr.Column(scale=2):
-                gr.Image("logo.png", show_label=False, width=100)
-            with gr.Column(scale=1):
+            with gr.Column(scale=1):  # Left spacer
+                pass
+
+            with gr.Column(scale=2, elem_id="header-section"):  # Centered logo + intro
+                gr.Image("logo.png", elem_id="logo", width=130, interactive=False, show_label=False)
+                gr.Markdown(
+                    "### Welcome to NutriCoach, your trusted nutrition companion!\n"
+                    "Looking for personalized health guidance? You're in the right place.",
+                    elem_id="intro-banner"
+                )
+
+            with gr.Column(scale=1, elem_id="toggle-row"):  # Language + theme toggle
                 lang_dropdown = gr.Dropdown(
                     choices=["fr", "en"],
                     value="fr",
-                    label="Language / Langue"
+                    interactive=True,
+                    show_label=False,
+                    elem_id="lang-select"
                 )
+                theme_toggle = gr.Button("☾", elem_id="theme-toggle-btn")
                 lang_state = gr.State("fr")
+
+                theme_toggle.click(
+                    fn=lambda: None,
+                    inputs=[],
+                    outputs=[],
+                    js=JS_THEME
+                )
 
         # States
         step_data = gr.State({
@@ -289,54 +492,53 @@ def create_interface():
         with gr.Tabs():
             # Personal Information Tab
             with gr.Tab("📋 Personal Information"):
-                with gr.Column(scale=1, min_width=600):  # Replace Box with Column
-                    form_intro = gr.Markdown(translations["fr"]["welcome_form"])
-                    
+                    form_intro = gr.Markdown(tr["welcome_form"], elem_id="form-intro")
                     prenom = gr.Textbox(
-                        label="Name",
-                        placeholder="Enter your name"
+                        label=tr["name_label"],
+                        placeholder=tr["name_placeholder"]
                     )
                     
                     with gr.Row():
                         age = gr.Number(
-                            label="Age",
+                            label=tr["age_label"],
                             value=25,
                             minimum=0,
-                            info="Must be between 16 and 100 years"
+                            info=tr["age_info"]
                         )
                         taille = gr.Number(
-                            label="Height (cm)",
+                            label=tr["height_label"],
                             value=170,
                             minimum=0,
-                            info="Height in centimeters"
+                            info=tr["height_info"]
                         )
                         poids = gr.Number(
-                            label="Weight (kg)",
+                            label=tr["weight_label"],
                             value=70,
                             minimum=0,
-                            info="Weight in kilograms"
+                            info=tr["weight_info"]
                         )
-                    
+
                     genre = gr.Radio(
-                        choices=translations["fr"]["genre_options"],
-                        label="Gender",
-                        value=translations["fr"]["genre_options"][0]
+                        choices=tr["genre_options"],
+                        label=tr["gender_label"],
+                        value=tr["genre_options"][0]
                     )
-                    
+
                     activite = gr.Radio(
-                        choices=translations["fr"]["activite_options"],
-                        label="Activity Level",
-                        value=translations["fr"]["activite_options"][1]
+                        choices=tr["activite_options"],
+                        label=tr["activity_label"],
+                        value=tr["activite_options"][1]
                     )
-                    
+
                     objectif = gr.Radio(
-                        choices=translations["fr"]["objectif_options"],
-                        label="Objective",
-                        value=translations["fr"]["objectif_options"][0]
+                        choices=tr["objectif_options"],
+                        label=tr["objective_label"],
+                        value=tr["objectif_options"][0]
                     )
+
                     
                     validation_message = gr.Markdown("")
-                    submit_btn = gr.Button("💾 Save Information", variant="primary")
+                    submit_btn = gr.Button("Save Information", variant="primary")
                     output_text = gr.Markdown("")
 
             # Chatbot Tab
@@ -347,36 +549,45 @@ def create_interface():
                         bubble_full_width=False,
                         show_label=False
                     )
-                    
                     with gr.Row():
                         msg = gr.Textbox(
                             placeholder="Ask me anything about nutrition...",
                             label="Your message",
                             scale=4
                         )
-                        send = gr.Button("Send 📤", scale=1, variant="primary")
-                    
-                    reset = gr.Button("Clear Chat 🗑️", variant="secondary")
-                    
+                        send = gr.Button("Send", scale=1, variant="primary")
+
+                    # Add file upload input (below the message box)
+                    file_input = gr.File(
+                        label=tr["file_upload_label"],
+                        type="filepath",
+                        file_types=[".pdf", ".txt", ".docx"]
+                    )
+
+                    reset = gr.Button("Clear Chat", variant="secondary")
+                             
                     # Voice Section
-                    gr.Markdown("## 🎤 Voice Interaction")
+                    voice_header_md = gr.Markdown(tr["voice_section_header"])
                     with gr.Row():
                         voice_input = gr.Audio(
                             type="filepath",
-                            label="Record your message"
                         )
-                        speak_button = gr.Button("Convert to Text 🗣️", variant="primary")
-                    voice_output = gr.Audio(label="AI Response")
+                        speak_button = gr.Button("Convert to Text", variant="primary")
+                    voice_output = gr.Audio()
+                    ai_response_md = gr.Markdown(value=tr["voice_output_label"])
 
-        # Event handlers
         lang_dropdown.change(
             fn=update_ui_texts,
             inputs=lang_dropdown,
             outputs=[
                 form_intro, output_text, msg, send, reset,
                 genre, activite, objectif, validation_message,
-                voice_input, speak_button, voice_output
+                voice_input, speak_button, voice_output,
+                prenom, age, taille, poids,
+                voice_header_md, ai_response_md,
+                file_input  # <-- this is the 19th item
             ]
+
         ).then(
             lambda lang: lang,
             inputs=lang_dropdown,
@@ -390,18 +601,18 @@ def create_interface():
         )
 
         # Chat functionality
-        msg.submit(
-            fn=chat_with_chatgpt,
-            inputs=[msg, history, lang_state],
-            outputs=[msg, chatbot, history]
-        )
-        
         send.click(
             fn=chat_with_chatgpt,
-            inputs=[msg, history, lang_state],
+            inputs=[msg, history, lang_state, file_input],
             outputs=[msg, chatbot, history]
         )
-        
+
+        msg.submit(
+            fn=chat_with_chatgpt,
+            inputs=[msg, history, lang_state, file_input],
+            outputs=[msg, chatbot, history]
+        )
+                
         reset.click(
             lambda: ([], []),
             outputs=[chatbot, history]
